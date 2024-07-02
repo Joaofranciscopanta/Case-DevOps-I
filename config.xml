@@ -1,0 +1,83 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@1400.v7fd111b_ec82f">
+  <actions>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobAction plugin="pipeline-model-definition@2.2203.v89fa_170c2b_f5"/>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction plugin="pipeline-model-definition@2.2203.v89fa_170c2b_f5">
+      <jobProperties/>
+      <triggers/>
+      <parameters/>
+      <options/>
+    </org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction>
+  </actions>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty>
+      <abortPrevious>true</abortPrevious>
+    </org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.PasswordParameterDefinition>
+          <name>ACCESS_ID</name>
+          <defaultValue>{AQAAABAAAAAgWHTYfJ12bRdSkH7b0UJYD0MpubPd7Ad4PskJ6kOMIVnLSRuiWBUdSsmM7Asv5P6p}</defaultValue>
+        </hudson.model.PasswordParameterDefinition>
+        <hudson.model.PasswordParameterDefinition>
+          <name>ACCESS_KEY</name>
+          <defaultValue>{AQAAABAAAAAwZ44FbC2RaJdktcgaMWGTnu8T6Kqh3yBqRjtUQ/tivC0DdtuS5yoe0y8uj8N/a7ObfipMekFtc56ISjlKy7RnIQ==}</defaultValue>
+        </hudson.model.PasswordParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@3903.v48a_8836749e9">
+    <script>pipeline {
+    agent any
+
+    environment {
+        AWS_ACCESS_KEY_ID = &quot;${ACCESS_ID}&quot;
+        AWS_SECRET_ACCESS_KEY = &quot;${ACCESS_KEY}&quot;
+        S3_BUCKET = &apos;backupbucketaaaaax&apos;
+        S3_KEY = &apos;PHP/new_index.php&apos;
+        LOCAL_FILE_PATH = &apos;index.php&apos;
+        DOCKER_CONTAINER_NAME = &apos;my-php-container&apos;
+        DOCKER_IMAGE = &apos;my-php-app&apos;
+    }
+
+    stages {
+        stage(&apos;Download from S3&apos;) {
+            steps {
+                script {
+                    sh &apos;&apos;&apos;
+                    aws configure set aws_access_key_id ${AWS_ACCESS_KEY_ID}
+                    aws configure set aws_secret_access_key ${AWS_SECRET_ACCESS_KEY}
+                    aws s3 cp s3://${S3_BUCKET}/${S3_KEY} ${LOCAL_FILE_PATH}
+                    &apos;&apos;&apos;
+                }
+            }
+        }
+
+        stage(&apos;Deploy to Docker Container&apos;) {
+            steps {
+                script {
+                    sh &apos;&apos;&apos;
+                    if [ ! &quot;$(docker ps -q -f name=${DOCKER_CONTAINER_NAME})&quot; ]; then
+                        if [ &quot;$(docker ps -aq -f status=exited -f name=${DOCKER_CONTAINER_NAME})&quot; ]; then
+                            docker rm ${DOCKER_CONTAINER_NAME}
+                        fi
+                        docker run -d --name ${DOCKER_CONTAINER_NAME} -p 80:80 ${DOCKER_IMAGE}
+                    fi
+                    &apos;&apos;&apos;
+
+                    sh &apos;&apos;&apos;
+                    docker cp ${LOCAL_FILE_PATH} ${DOCKER_CONTAINER_NAME}:/var/www/html/
+                    &apos;&apos;&apos;
+                }
+            }
+        }
+    }
+}
+</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>
